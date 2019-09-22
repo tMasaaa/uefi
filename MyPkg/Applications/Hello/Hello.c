@@ -61,6 +61,9 @@
 //   return EFI_SUCCESS;
 // }
 
+
+// -----------------------------------
+
 EFI_STATUS
 EFIAPI
 UefiMain (
@@ -108,92 +111,126 @@ UefiMain (
   EFI_FILE_PROTOCOL *root_dir;
   status = fs->OpenVolume(fs, &root_dir);
   Print(L"Root directory status: %r\n", status);
-
-  // open file protocol 
-  EFI_FILE_PROTOCOL *memmap_file;
+  
+  // ---------------------------------
+  // mclang.elf
+  // ---------------------------------
+  EFI_FILE_PROTOCOL *elf_file;
   status = root_dir->Open(
     root_dir,
-    &memmap_file,
-    L"memmap",
-    // EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE,
-    EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE,
+    &elf_file,
+    L"mclang.elf",
+    EFI_FILE_MODE_READ,
     0
   );
-  Print(L"Open File memmap status: %r\n", status);
+  Print(L"Open ELF file status: %r\n", status);
 
-  // struct MemoryMap memmap = {
-  //   map_size,
-  //   (VOID *)map,
-  //   map_size,
-  //   map_key,
-  //   descriptor_size,
-  //   descriptor_version
-  // };
+  UINT64 elf_file_addr = 0x100000lu;
+  UINTN num_pages = 4;
+  status = gBS->AllocatePages(AllocateAddress, EfiLoaderData, num_pages, &elf_file_addr);
+  Print(L"Allocate Memory status: %r\n", status);
 
+  UINTN elf_buf = num_pages * 4096;
+  status = elf_file->Read(elf_file, &elf_buf, (VOID*)elf_file_addr);
+  Print(L"ELF Read status: %r\n", status);
 
-  UINTN buf_size = 4096;
-  CHAR16 file_buf[4096] = L"Index, Type, PhysicalStart, VirtualStart, NumberofPages, Attribute\n"; // this is write object
-  // struct file_buf[4096];
-  status = memmap_file->Write(memmap_file, &buf_size, (void *)file_buf);
-  Print(L"Write File status: %r\n", status);
-  
-  // Print(L"Start Iter: %r\n", (EFI_PHYSICAL_ADDRESS)map);
-  // Print(L"End Iter: %r\n", (EFI_PHYSICAL_ADDRESS)map+map_size);
-  // Print(L"Iter: %r\n", descriptor_size);
-  // CHAR8 body[256];
-  // AsciiSPrint(
-  //   body,
-  //   sizeof(body), 
-  //   "%lx, %lx, %lx, %lx, %lx\n",
-  //   map_size,
-  //   map,
-  //   map_key,
-  //   descriptor_size,
-  //   descriptor_version
-  // );
+  UINT64 entry_addr = *(UINT64*)(elf_file_addr + 24);
 
-  CHAR8 body[256];
-  EFI_PHYSICAL_ADDRESS iter;
-  int i;
-  UINTN len;
-  for (
-    iter = (EFI_PHYSICAL_ADDRESS)map, i = 0;
-    iter < (EFI_PHYSICAL_ADDRESS)map + map_size;
-    iter += descriptor_size, i++
-  ) {
-    EFI_MEMORY_DESCRIPTOR *desc = (EFI_MEMORY_DESCRIPTOR *)iter;
-    len = AsciiSPrint(
-      body,
-      sizeof(body), 
-      "Index: %02u, Type: %x, PhysicalStart: %lx, VirtualStart: %lx, NumberOfPages: %d, Attribute: %lx\n",
-      i,
-      desc->Type,
-      desc->PhysicalStart,
-      desc->VirtualStart,
-      desc->NumberOfPages,
-      desc->Attribute
-    );
-    Print(L"ok %u", i);
-    status = memmap_file->Write(memmap_file, &len, (void *)body);
-  }
+  typedef int EntryPointType(void*);
+  EntryPointType* entry_point = (EntryPointType*)entry_addr;
+  int exit_code = entry_point(Print);
 
-  Print(L"Write File status: %r\n", status);
+  Print(L"Exit status: %d\n", exit_code);
 
-  memmap_file->Flush(memmap_file);
-  status = memmap_file->Close(memmap_file);
-  Print(L"Close File status: %r\n", status);
+  // ---------------------------------
+  // memory map
+  // ---------------------------------
 
-  // ----Success
-  // UINTN buf_size = 4096;
-  // CHAR8 file_buf[4096];
-  // status = root_dir->Read(
+  // // open file protocol 
+  // EFI_FILE_PROTOCOL *memmap_file;
+  // status = root_dir->Open(
   //   root_dir,
-  //   &buf_size,
-  //   (void *)file_buf
+  //   &memmap_file,
+  //   L"memmap",
+  //   // EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE,
+  //   EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE,
+  //   0
   // );
-  // Print(L"File memmap Read status: %r\n", status);
-  // struct EFI_FILE_INFO *file_info;
-  // file_info = (struct EFI_FILE_INFO *)file_buf;
+  // Print(L"Open File memmap status: %r\n", status);
+
+  // // struct MemoryMap memmap = {
+  // //   map_size,
+  // //   (VOID *)map,
+  // //   map_size,
+  // //   map_key,
+  // //   descriptor_size,
+  // //   descriptor_version
+  // // };
+
+
+  // UINTN buf_size = 4096;
+  // CHAR16 file_buf[4096] = L"Index, Type, PhysicalStart, VirtualStart, NumberofPages, Attribute\n"; // this is write object
+  // // struct file_buf[4096];
+  // status = memmap_file->Write(memmap_file, &buf_size, (void *)file_buf);
+  // Print(L"Write File status: %r\n", status);
+  
+  // // Print(L"Start Iter: %r\n", (EFI_PHYSICAL_ADDRESS)map);
+  // // Print(L"End Iter: %r\n", (EFI_PHYSICAL_ADDRESS)map+map_size);
+  // // Print(L"Iter: %r\n", descriptor_size);
+  // // CHAR8 body[256];
+  // // AsciiSPrint(
+  // //   body,
+  // //   sizeof(body), 
+  // //   "%lx, %lx, %lx, %lx, %lx\n",
+  // //   map_size,
+  // //   map,
+  // //   map_key,
+  // //   descriptor_size,
+  // //   descriptor_version
+  // // );
+
+  // CHAR8 body[256];
+  // EFI_PHYSICAL_ADDRESS iter;
+  // int i;
+  // UINTN len;
+  // for (
+  //   iter = (EFI_PHYSICAL_ADDRESS)map, i = 0;
+  //   iter < (EFI_PHYSICAL_ADDRESS)map + map_size;
+  //   iter += descriptor_size, i++
+  // ) {
+  //   EFI_MEMORY_DESCRIPTOR *desc = (EFI_MEMORY_DESCRIPTOR *)iter;
+  //   len = AsciiSPrint(
+  //     body,
+  //     sizeof(body), 
+  //     "Index: %02u, Type: %x, PhysicalStart: %lx, VirtualStart: %lx, NumberOfPages: %d, Attribute: %lx\n",
+  //     i,
+  //     desc->Type,
+  //     desc->PhysicalStart,
+  //     desc->VirtualStart,
+  //     desc->NumberOfPages,
+  //     desc->Attribute
+  //   );
+  //   Print(L"ok %u", i);
+  //   status = memmap_file->Write(memmap_file, &len, (void *)body);
+  // }
+
+  // Print(L"Write File status: %r\n", status);
+
+  // memmap_file->Flush(memmap_file);
+  // status = memmap_file->Close(memmap_file);
+  // Print(L"Close File status: %r\n", status);
+
+  // // ----Success
+  // // UINTN buf_size = 4096;
+  // // CHAR8 file_buf[4096];
+  // // status = root_dir->Read(
+  // //   root_dir,
+  // //   &buf_size,
+  // //   (void *)file_buf
+  // // );
+  // // Print(L"File memmap Read status: %r\n", status);
+  // // struct EFI_FILE_INFO *file_info;
+  // // file_info = (struct EFI_FILE_INFO *)file_buf;
 
   Print(L"Hello EDK II.\n");
   while (1);
