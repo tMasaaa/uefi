@@ -125,22 +125,123 @@ UefiMain (
   );
   Print(L"Open ELF file status: %r\n", status);
 
-  UINT64 elf_file_addr = 0x100000lu;
-  UINTN num_pages = 4;
+  UINT64 elf_file_addr = 0x100000lu; // image base address
+  UINTN num_pages = 5; // DYN->5, EXEC->4
   status = gBS->AllocatePages(AllocateAddress, EfiLoaderData, num_pages, &elf_file_addr);
   Print(L"Allocate Memory status: %r\n", status);
 
   UINTN elf_buf = num_pages * 4096;
   status = elf_file->Read(elf_file, &elf_buf, (VOID*)elf_file_addr);
-  Print(L"ELF Read status: %r\n", status);
+  Print(L"ELF Read status: %r\n", status); // ok
 
-  UINT64 entry_addr = *(UINT64*)(elf_file_addr + 24);
+  // ---------------------------------------------------
+  // relocation
+  // ---------------------------------------------------
 
-  typedef int EntryPointType(void*);
-  EntryPointType* entry_point = (EntryPointType*)entry_addr;
-  int exit_code = entry_point(Print);
+  // UINT64 entry_addr = *(UINT64*)(elf_file_addr + 1);
+  // Print(L"elf_file_addr: %lx\n", elf_file_addr); // 100000 -> base address
+  // Print(L"entry value: %lx\n", entry_addr); // 101020 ->MyMain
 
-  Print(L"Exit status: %d\n", exit_code);
+  // for (int i = 0;i<16;i++) {
+  //   UINT32 param_addr = *(UINT32*)(elf_file_addr + i);
+  //   Print(L"ident: %d ->%lx\n", i, param_addr);
+  // }
+  // UINT32 entry_addr,sh_offset;
+  // entry_addr = *(UINT32*)(elf_file_addr + 16);
+  // Print(L"e_type->%lx\n", entry_addr);
+  // entry_addr = *(UINT32*)(elf_file_addr + 18);
+  // Print(L"e_machine->%lx\n", entry_addr);
+  // entry_addr = *(UINT32*)(elf_file_addr + 20);
+  // Print(L"e_version->%lx\n", entry_addr);
+  // entry_addr = *(UINT32*)(elf_file_addr + 24);
+  // Print(L"e_entry->%lx\n", entry_addr);
+  // entry_addr = *(UINT32*)(elf_file_addr + 32);
+  // Print(L"e_phoff->%lx\n", entry_addr);
+  // sh_offset = *(UINT32*)(elf_file_addr + 40);
+  // Print(L"e_shoff->%lx\n", sh_offset);
+  // entry_addr = *(UINT32*)(elf_file_addr + 48);
+  // Print(L"e_flags->%lx\n", entry_addr);
+  // entry_addr = *(UINT32*)(elf_file_addr + 52);
+  // Print(L"e_ehsize->%lx\n", entry_addr);
+  // entry_addr = *(UINT32*)(elf_file_addr + 54);
+  // Print(L"e_phentsize->%lx\n", entry_addr);
+  // entry_addr = *(UINT32*)(elf_file_addr + 56);
+  // Print(L"e_phnum->%lx\n", entry_addr);
+  // entry_addr = *(UINT32*)(elf_file_addr + 58);
+  // Print(L"e_shentsize->%lx\n", entry_addr);
+  // entry_addr = *(UINT32*)(elf_file_addr + 60);
+  // Print(L"e_shnum->%lx\n", entry_addr);
+  // entry_addr = *(UINT32*)(elf_file_addr + 62);
+  // Print(L"e_shstrndx->%lx\n", entry_addr);
+
+
+  // entry_addr = *(UINT32*)(elf_file_addr + sh_offset);
+  // Print(L"section header value->%lx\n", entry_addr);
+
+  // typedef struct {
+  //   CHAR8* e_ident[16]; // 1*16
+  //   UINT16 e_type; // 16+2
+  //   UINT16 e_machine; // 18+2
+  //   UINT32 e_version; // 20+4
+  //   UINT64 e_entry; // 24+8
+  //   UINT64 e_phoff; // 28+8
+  //   UINT64 e_shoff; // 32+8
+  //   UINT32 e_flags; // 36+4
+  //   UINT16 e_ehsize; // 40+2
+  //   UINT16 e_phentsize; // 42+2
+  //   UINT16 e_phnum; // 44+2
+  //   UINT16 e_shentsize; // 46+2
+  //   UINT16 e_shnum; // 48+2
+  //   UINT16 e_shstrndx; // 50+2
+  // } Elf64_Ehdr;
+
+  // CHAR8* e_ident[16] = (CHAR8*)(elf_file_addr); // 1*16
+  UINT16 e_type = *(UINT16*)(elf_file_addr + 16); // 16+2
+  UINT16 e_machine = *(UINT16*)(elf_file_addr + 18); // 18+2
+  UINT32 e_version = *(UINT32*)(elf_file_addr + 20); // 20+4
+  UINT64 e_entry = *(UINT64*)(elf_file_addr + 24); // 24+8
+  UINT64 e_phoff = *(UINT64*)(elf_file_addr + 28); // 28+8
+  UINT64 e_shoff = *(UINT64*)(elf_file_addr + 32); // 32+8
+  UINT32 e_flags = *(UINT32*)(elf_file_addr + 36); // 36+4
+  UINT16 e_ehsize = *(UINT16*)(elf_file_addr + 40); // 40+2
+  UINT16 e_phentsize = *(UINT16*)(elf_file_addr + 42); // 42+2
+  UINT16 e_phnum = *(UINT16*)(elf_file_addr + 44); // 44+2
+  UINT16 e_shentsize = *(UINT16*)(elf_file_addr + 46); // 46+2
+  UINT16 e_shnum = *(UINT16*)(elf_file_addr + 48); // 48+2
+  UINT16 e_shstrndx = *(UINT16*)(elf_file_addr + 50); // 50+2
+  
+  // Print(L"signature -> %s\n", *e_ident);
+  Print(L"type -> %d\n", e_type);
+  Print(L"machine -> %d\n", e_machine);
+  Print(L"version -> %d\n", e_version);
+  Print(L"entry -> %lx\n", e_entry);
+  Print(L"program header offset -> %lx\n", e_phoff);
+  Print(L"section header offset -> %lx\n", e_shoff);
+  Print(L"flag(NONUSED) -> %d\n", e_flags);
+  Print(L"ELF header bytes -> %d\n", e_ehsize);
+  Print(L"program header size -> %d\n", e_phentsize);
+  Print(L"number of entries in program header -> %d\n", e_phnum);
+  Print(L"section header size -> %d\n", e_shentsize);
+  Print(L"number of entries in section header -> %d\n", e_shnum);
+  Print(L"section name string table index -> %d\n", e_shstrndx);
+
+  // Print(L"%r\n", elf_file_addr); // base address
+  // SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Hello UEFI!\n");
+  // Print(L"elf_file_header? : %r\n", *(UINT64*)(elf_file_addr + 0));
+  // for (int i = 1;i<10;++i) {
+  //   SystemTable->ConOut->OutputString(SystemTable->ConOut, (VOID *)(elf_file_addr + i));
+  //   // Print(L"NUM: %d -> %lu\n", i, *(UINT64*)(elf_file_addr + i));
+  // }
+
+  // ---------------------------------------------------
+
+  // UINT64 entry_addr = *(UINT64*)(elf_file_addr + 24);
+
+  // typedef int EntryPointType(void*);
+  // EntryPointType* entry_point = (EntryPointType*)entry_addr;
+  // int exit_code = entry_point(Print);
+
+  // Print(L"Exit status: %d\n", exit_code);
 
   // ---------------------------------
   // memory map
