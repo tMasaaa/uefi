@@ -97,15 +97,15 @@ UefiMain (
   UINT16 e_machine = *(UINT16*)(elf_file_addr + 18); // 18+2
   UINT32 e_version = *(UINT32*)(elf_file_addr + 20); // 20+4
   UINT64 e_entry = *(UINT64*)(elf_file_addr + 24); // 24+8
-  UINT64 e_phoff = *(UINT64*)(elf_file_addr + 28); // 28+8
-  UINT64 e_shoff = *(UINT64*)(elf_file_addr + 32); // 32+8
-  UINT32 e_flags = *(UINT32*)(elf_file_addr + 36); // 36+4
-  UINT16 e_ehsize = *(UINT16*)(elf_file_addr + 40); // 40+2
-  UINT16 e_phentsize = *(UINT16*)(elf_file_addr + 42); // 42+2
-  UINT16 e_phnum = *(UINT16*)(elf_file_addr + 44); // 44+2
-  UINT16 e_shentsize = *(UINT16*)(elf_file_addr + 46); // 46+2
-  UINT16 e_shnum = *(UINT16*)(elf_file_addr + 48); // 48+2
-  UINT16 e_shstrndx = *(UINT16*)(elf_file_addr + 50); // 50+2
+  UINT64 e_phoff = *(UINT64*)(elf_file_addr + 32); // 28+8
+  UINT64 e_shoff = *(UINT64*)(elf_file_addr + 40); // 32+8
+  UINT32 e_flags = *(UINT32*)(elf_file_addr + 48); // 36+4
+  UINT16 e_ehsize = *(UINT16*)(elf_file_addr + 52); // 40+2
+  UINT16 e_phentsize = *(UINT16*)(elf_file_addr + 54); // 42+2
+  UINT16 e_phnum = *(UINT16*)(elf_file_addr + 56); // 44+2
+  UINT16 e_shentsize = *(UINT16*)(elf_file_addr + 58); // 46+2
+  UINT16 e_shnum = *(UINT16*)(elf_file_addr + 60); // 48+2
+  UINT16 e_shstrndx = *(UINT16*)(elf_file_addr + 62); // 50+2
   
   // Print(L"signature -> %s\n", *e_ident);
   Print(L"type -> %d\n", e_type);
